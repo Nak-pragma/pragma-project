@@ -1,5 +1,5 @@
 {
-  "name": "kintone-gpt-server",
+  "name": "pragma-project-server",
   "version": "1.0.4",
   "main": "server.js",
   "type": "module",
