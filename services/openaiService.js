@@ -1,20 +1,23 @@
-// services/openaiService.js
 import OpenAI from "openai";
-import { formatResponse, handleError } from "../utils/formatter.js";
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function handleOpenAIChat(req, res) {
-  try {
-    const { prompt } = req.body;
+export async function handleOpenAIChat(prompt, direct = false) {
+  const start = Date.now();
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+  });
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
+  const duration = `${Date.now() - start}ms`;
+  const content = completion.choices[0].message.content;
 
-    res.json(formatResponse("OpenAI", completion.choices[0].message.content));
-  } catch (err) {
-    handleError(res, err, "OpenAI");
-  }
+  const result = {
+    provider: "OpenAI",
+    model: "gpt-4o-mini",
+    content,
+    duration,
+  };
+
+  // directモードではresultを返すだけ
+  if (direct) return result;
 }
