@@ -39,28 +39,37 @@
     if (!space) return event;
     space.innerHTML = "";
 
+    // ==== 入力欄（独自UI） ====
+    const input = document.createElement("textarea");
+    input.placeholder = "ここに質問を入力...";
+    input.style =
+      "width:100%;height:80px;margin-bottom:8px;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:14px;resize:vertical;";
+    space.appendChild(input);
+
+    // 既存値があれば初期表示
+    if (record[PROMPT_FIELD].value) input.value = record[PROMPT_FIELD].value;
+
+    // ==== 実行ボタン ====
     const btn = document.createElement("button");
     btn.textContent = "💬 AI応答を取得（OpenAI）";
     btn.style =
       "background:#4472C4;color:#fff;padding:6px 12px;border:none;border-radius:6px;margin-bottom:12px;";
     space.appendChild(btn);
 
+    // ==== 結果表示 ====
     const resultDiv = document.createElement("div");
     resultDiv.style = `
       background:#f7f8fa;border-radius:8px;padding:12px;
-      font-family:system-ui,sans-serif;line-height:1.6;white-space:normal;
-      color:#222;overflow-wrap:break-word;box-shadow:0 1px 3px rgba(0,0,0,0.1);
+      font-family:system-ui,sans-serif;line-height:1.6;
+      white-space:normal;color:#222;overflow-wrap:break-word;
+      box-shadow:0 1px 3px rgba(0,0,0,0.1);
     `;
     space.appendChild(resultDiv);
 
+    // ==== ボタンクリック ====
     btn.onclick = async () => {
-      // ✅ 編集中の値を確実に取得
-      const promptEl = kintone.app.record.getFieldElement(PROMPT_FIELD);
-      const prompt = promptEl ? promptEl.value : "";
-      if (!prompt) {
-        alert("質問を入力してください。");
-        return;
-      }
+      const prompt = input.value.trim();
+      if (!prompt) return alert("質問を入力してください。");
 
       btn.disabled = true;
       btn.textContent = "⏳ 実行中...";
@@ -78,7 +87,8 @@
         const result = data.results[0];
         resultDiv.innerHTML = renderMarkdown(result.content);
 
-        // テーブル反映（保存時にレコードへ反映される）
+        // kintone保存用データに反映
+        record[PROMPT_FIELD].value = prompt;
         record[TABLE_FIELD].value = [
           {
             value: {
