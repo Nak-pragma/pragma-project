@@ -2,10 +2,10 @@
   "use strict";
 
   const RENDER_API = "https://pragma-project.onrender.com/assist/multi/compare";
-  const PROMPT_FIELD = "prompt";
   const TABLE_FIELD = "ai_results";
   const SPACE_FIELD = "chat_space";
 
+  // ===== Markdown読み込み =====
   const loadMarked = async () => {
     if (window.marked && window.DOMPurify) return;
     await Promise.all([
@@ -26,40 +26,40 @@
     ]);
   };
 
+  const renderMarkdown = (text) => {
+    if (!window.marked || !window.DOMPurify) return text;
+    return DOMPurify.sanitize(marked.parse(text || ""));
+  };
+
   kintone.events.on("app.record.edit.show", async (event) => {
-    console.log("🚀 multi-chat.js loaded (edit mode)");
+    console.log("🚀 multi-chat_v3.js loaded (edit mode)");
     const record = event.record;
     await loadMarked();
 
     const space = kintone.app.record.getSpaceElement(SPACE_FIELD);
-    console.log("✅ SPACE:", SPACE_FIELD, space);
-
     if (!space) {
-      console.error("❌ スペースフィールドが見つかりません。フォームで確認してください。");
+      console.error("❌ chat_space が見つかりません。フォーム設定を確認してください。");
       return event;
     }
 
-    // UI構築開始
+    // --- UI構築 ---
     space.innerHTML = "";
-    console.log("✅ スペース初期化完了");
 
+    // 入力欄
     const input = document.createElement("textarea");
     input.placeholder = "ここに質問を入力...";
     input.style =
       "width:100%;height:80px;margin-bottom:8px;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:14px;resize:vertical;";
     space.appendChild(input);
-    console.log("✅ 入力欄追加");
 
-    if (record[PROMPT_FIELD].value) input.value = record[PROMPT_FIELD].value;
-
-    // 💬 ボタン生成
+    // 実行ボタン
     const btn = document.createElement("button");
     btn.textContent = "💬 AI応答を取得（OpenAI）";
     btn.style =
       "background:#4472C4;color:#fff;padding:6px 12px;border:none;border-radius:6px;margin-bottom:12px;cursor:pointer;";
     space.appendChild(btn);
-    console.log("✅ ボタン追加");
 
+    // 結果表示
     const resultDiv = document.createElement("div");
     resultDiv.style = `
       background:#f7f8fa;border-radius:8px;padding:12px;
@@ -68,10 +68,9 @@
       box-shadow:0 1px 3px rgba(0,0,0,0.1);
     `;
     space.appendChild(resultDiv);
-    console.log("✅ 結果表示領域追加");
 
+    // --- ボタンクリック処理 ---
     btn.onclick = async () => {
-      console.log("💬 送信ボタンクリック");
       const prompt = input.value.trim();
       if (!prompt) return alert("質問を入力してください。");
 
@@ -84,16 +83,16 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt }),
         });
-
         const data = await res.json();
         console.log("✅ API応答:", data);
 
         if (!data.results || !Array.isArray(data.results)) throw new Error("応答が不正です。");
-
         const result = data.results[0];
-        resultDiv.innerHTML = DOMPurify.sanitize(marked.parse(result.content || ""));
 
-        record[PROMPT_FIELD].value = prompt;
+        // Markdownとして結果表示
+        resultDiv.innerHTML = renderMarkdown(result.content);
+
+        // テーブルに反映（保存対象）
         record[TABLE_FIELD].value = [
           {
             value: {
@@ -115,7 +114,7 @@
       }
     };
 
-    console.log("✅ 初期化完了");
+    console.log("✅ multi-chat UI ready");
     return event;
   });
 })();
