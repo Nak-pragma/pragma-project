@@ -6,6 +6,7 @@
   const TABLE_FIELD = "ai_results";
   const SPACE_FIELD = "chat_space";
 
+  // ===== Markdownロード =====
   const loadMarked = async () => {
     if (window.marked && window.DOMPurify) return;
     await Promise.all([
@@ -22,7 +23,7 @@
         s.onload = resolve;
         s.onerror = reject;
         document.head.appendChild(s);
-      })
+      }),
     ]);
   };
 
@@ -31,32 +32,37 @@
     return DOMPurify.sanitize(marked.parse(text || ""));
   };
 
+  // ===== 編集モードイベント =====
   kintone.events.on("app.record.edit.show", async (event) => {
     const record = event.record;
     await loadMarked();
 
-    const space = kintone.app.record.getSpaceElement(SPACE_FIELD);
-    if (!space) return event;
+    // --- スペース要素取得 ---
+    let space = kintone.app.record.getSpaceElement(SPACE_FIELD);
+    if (!space) {
+      console.warn("⚠️ スペースフィールドが見つかりません。");
+      return event;
+    }
+
     space.innerHTML = "";
 
-    // ==== 入力欄（独自UI） ====
+    // --- 入力欄 ---
     const input = document.createElement("textarea");
     input.placeholder = "ここに質問を入力...";
     input.style =
       "width:100%;height:80px;margin-bottom:8px;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:14px;resize:vertical;";
     space.appendChild(input);
 
-    // 既存値があれば初期表示
     if (record[PROMPT_FIELD].value) input.value = record[PROMPT_FIELD].value;
 
-    // ==== 実行ボタン ====
+    // --- 実行ボタン ---
     const btn = document.createElement("button");
     btn.textContent = "💬 AI応答を取得（OpenAI）";
     btn.style =
-      "background:#4472C4;color:#fff;padding:6px 12px;border:none;border-radius:6px;margin-bottom:12px;";
+      "background:#4472C4;color:#fff;padding:6px 12px;border:none;border-radius:6px;margin-bottom:12px;cursor:pointer;";
     space.appendChild(btn);
 
-    // ==== 結果表示 ====
+    // --- 結果表示 ---
     const resultDiv = document.createElement("div");
     resultDiv.style = `
       background:#f7f8fa;border-radius:8px;padding:12px;
@@ -66,10 +72,13 @@
     `;
     space.appendChild(resultDiv);
 
-    // ==== ボタンクリック ====
+    // --- ボタンクリックイベント ---
     btn.onclick = async () => {
       const prompt = input.value.trim();
-      if (!prompt) return alert("質問を入力してください。");
+      if (!prompt) {
+        alert("質問を入力してください。");
+        return;
+      }
 
       btn.disabled = true;
       btn.textContent = "⏳ 実行中...";
@@ -81,28 +90,32 @@
           body: JSON.stringify({ prompt }),
         });
         const data = await res.json();
-        if (!data.results || !Array.isArray(data.results))
+
+        if (!data.results || !Array.isArray(data.results)) {
           throw new Error("応答が不正です。");
+        }
 
         const result = data.results[0];
         resultDiv.innerHTML = renderMarkdown(result.content);
 
-        // kintone保存用データに反映
+        // ✅ kintoneのレコードに反映（保存可能）
         record[PROMPT_FIELD].value = prompt;
+
         record[TABLE_FIELD].value = [
           {
             value: {
-              provider: { value: result.provider },
-              model: { value: result.model },
-              content: { value: result.content },
-              latency: { value: result.duration.replace("ms", "") },
+              provider: { value: result.provider || "OpenAI" },
+              model: { value: result.model || "gpt-4o-mini" },
+              content: { value: result.content || "" },
+              latency: { value: result.duration ? result.duration.replace("ms", "") : "" },
             },
           },
         ];
 
+        console.log("✅ レコードへ反映:", record[TABLE_FIELD].value);
         alert("✅ AI応答を取得しました。保存すると反映されます。");
       } catch (err) {
-        console.error(err);
+        console.error("❌ Fetch Error:", err);
         alert("❌ エラー: " + err.message);
       } finally {
         btn.disabled = false;
