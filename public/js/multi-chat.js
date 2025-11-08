@@ -6,7 +6,6 @@
   const TABLE_FIELD = "ai_results";
   const SPACE_FIELD = "chat_space";
 
-  // ----- Markdownライブラリ読み込み -----
   const loadMarked = async () => {
     if (window.marked && window.DOMPurify) return;
     await Promise.all([
@@ -32,7 +31,6 @@
     return DOMPurify.sanitize(marked.parse(text || ""));
   };
 
-  // ----- 編集モードで動作 -----
   kintone.events.on("app.record.edit.show", async (event) => {
     const record = event.record;
     await loadMarked();
@@ -43,7 +41,8 @@
 
     const btn = document.createElement("button");
     btn.textContent = "💬 AI応答を取得（OpenAI）";
-    btn.style = "background:#4472C4;color:#fff;padding:6px 12px;border:none;border-radius:6px;margin-bottom:12px;";
+    btn.style =
+      "background:#4472C4;color:#fff;padding:6px 12px;border:none;border-radius:6px;margin-bottom:12px;";
     space.appendChild(btn);
 
     const resultDiv = document.createElement("div");
@@ -55,10 +54,13 @@
     space.appendChild(resultDiv);
 
     btn.onclick = async () => {
-      // ✅ 入力中の値をDOMから取得（保存前でもOK）
-      const promptInput = document.querySelector(`[name="${PROMPT_FIELD}"]`);
-      const prompt = promptInput ? promptInput.value : "";
-      if (!prompt) return alert("質問を入力してください。");
+      // ✅ 編集中の値を確実に取得
+      const promptEl = kintone.app.record.getFieldElement(PROMPT_FIELD);
+      const prompt = promptEl ? promptEl.value : "";
+      if (!prompt) {
+        alert("質問を入力してください。");
+        return;
+      }
 
       btn.disabled = true;
       btn.textContent = "⏳ 実行中...";
@@ -67,27 +69,28 @@
         const res = await fetch(RENDER_API, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt })
+          body: JSON.stringify({ prompt }),
         });
         const data = await res.json();
-        if (!data.results || !Array.isArray(data.results)) throw new Error("応答が不正です。");
+        if (!data.results || !Array.isArray(data.results))
+          throw new Error("応答が不正です。");
 
         const result = data.results[0];
         resultDiv.innerHTML = renderMarkdown(result.content);
 
-        // テーブル反映（保存用）
+        // テーブル反映（保存時にレコードへ反映される）
         record[TABLE_FIELD].value = [
           {
             value: {
               provider: { value: result.provider },
               model: { value: result.model },
               content: { value: result.content },
-              latency: { value: result.duration.replace("ms", "") }
-            }
-          }
+              latency: { value: result.duration.replace("ms", "") },
+            },
+          },
         ];
 
-        alert("✅ AI応答を取得しました。保存するとレコードに反映されます。");
+        alert("✅ AI応答を取得しました。保存すると反映されます。");
       } catch (err) {
         console.error(err);
         alert("❌ エラー: " + err.message);
