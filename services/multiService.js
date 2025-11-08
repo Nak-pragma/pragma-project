@@ -1,43 +1,38 @@
 /**
  * ==========================================================
  *  multiService.js
- *  ✅ 現在は OpenAI 専用（将来 Claude / Gemini 追加を想定）
+ *  ✅ OpenAI専用 (req.body修正版)
  * ==========================================================
  */
-
 import { handleOpenAIChat } from "./openaiService.js";
 
-/**
- * Compare responses across multiple AI providers.
- * 現段階では OpenAI のみを呼び出します。
- */
 export async function compareResponses(req, res) {
-  const { prompt } = req.body;
-
-  if (!prompt || prompt.trim() === "") {
-    return res.status(400).json({ error: "Missing prompt text." });
-  }
-
   try {
-    console.log("🔹 [multiService] Received prompt:", prompt);
+    // --- 入力チェック ---
+    const { prompt } = req.body || {};
+    if (!prompt || prompt.trim() === "") {
+      return res.status(400).json({ error: "Missing prompt text." });
+    }
+
+    console.log("🔹 [multiService] Prompt received:", prompt);
     const start = Date.now();
 
-    // ---- 現在は OpenAI のみ ----
+    // --- OpenAIチャット呼び出し ---
     const openaiResult = await handleOpenAIChat(prompt, true);
 
-    const end = Date.now();
-    const latency = `${end - start}ms`;
-
+    const latency = `${Date.now() - start}ms`;
     console.log("✅ [multiService] OpenAI response OK:", latency);
 
-    // ---- 結果を配列構造で返す（将来の拡張を考慮）----
-    res.json({
+    // --- 結果を返す ---
+    return res.json({
       prompt,
       results: [openaiResult],
       latency,
     });
+
   } catch (err) {
     console.error("❌ [multiService] Error:", err);
-    res.status(500).json({ error: err.message || "Unknown error" });
+    // Expressのresでエラーレスポンスを返す
+    return res.status(500).json({ error: err.message || "Unknown error" });
   }
 }
