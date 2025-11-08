@@ -6,9 +6,7 @@
   const TABLE_FIELD = "ai_results";
   const SPACE_FIELD = "chat_space";
 
-  // ----------------------------
-  // marked + DOMPurify ロード
-  // ----------------------------
+  // ----- Markdownライブラリ読み込み -----
   const loadMarked = async () => {
     if (window.marked && window.DOMPurify) return;
     await Promise.all([
@@ -34,9 +32,7 @@
     return DOMPurify.sanitize(marked.parse(text || ""));
   };
 
-  // ----------------------------
-  // 編集モードでボタン表示
-  // ----------------------------
+  // ----- 編集モードで動作 -----
   kintone.events.on("app.record.edit.show", async (event) => {
     const record = event.record;
     await loadMarked();
@@ -45,13 +41,11 @@
     if (!space) return event;
     space.innerHTML = "";
 
-    // 実行ボタン
     const btn = document.createElement("button");
     btn.textContent = "💬 AI応答を取得（OpenAI）";
     btn.style = "background:#4472C4;color:#fff;padding:6px 12px;border:none;border-radius:6px;margin-bottom:12px;";
     space.appendChild(btn);
 
-    // 結果表示エリア
     const resultDiv = document.createElement("div");
     resultDiv.style = `
       background:#f7f8fa;border-radius:8px;padding:12px;
@@ -61,7 +55,9 @@
     space.appendChild(resultDiv);
 
     btn.onclick = async () => {
-      const prompt = record[PROMPT_FIELD].value;
+      // ✅ 入力中の値をDOMから取得（保存前でもOK）
+      const promptInput = document.querySelector(`[name="${PROMPT_FIELD}"]`);
+      const prompt = promptInput ? promptInput.value : "";
       if (!prompt) return alert("質問を入力してください。");
 
       btn.disabled = true;
@@ -73,15 +69,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt })
         });
-
         const data = await res.json();
         if (!data.results || !Array.isArray(data.results)) throw new Error("応答が不正です。");
 
-        // OpenAI応答（Markdown）
         const result = data.results[0];
         resultDiv.innerHTML = renderMarkdown(result.content);
 
-        // テーブルへ自動反映
+        // テーブル反映（保存用）
         record[TABLE_FIELD].value = [
           {
             value: {
@@ -93,7 +87,7 @@
           }
         ];
 
-        alert("✅ AI応答を取得しました。内容を確認して保存できます。");
+        alert("✅ AI応答を取得しました。保存するとレコードに反映されます。");
       } catch (err) {
         console.error(err);
         alert("❌ エラー: " + err.message);
