@@ -41,9 +41,9 @@ app.post("/mvp/thread-chat", async (req, res) => {
 // =======================================================
 
 // Render 環境変数
-const WBS_IMPORT_APP_ID = process.env.WBS_IMPORT_APP_ID;   // ★WBS_importアプリID
+const WBS_IMPORT_APP_ID = process.env.KINTONE_WBS_IMPORT_APP_ID;   // ★WBS_importアプリID
 const KINTONE_DOMAIN    = process.env.KINTONE_DOMAIN;       // 例：xxxx.cybozu.com
-const KINTONE_API_TOKEN = process.env.KINTONE_API_TOKEN;    // ★追加権限APIトークン
+const KINTONE_API_TOKEN = process.env.KINTONE_WBS_IMPORT_TOKEN;    // ★追加権限APIトークン
 
 // ★ ExcelからWBS_importへデータ追加登録
 app.post("/excel/import", async (req, res) => {
