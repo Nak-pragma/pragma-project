@@ -120,6 +120,7 @@ function convertValue(type, val) {
   }
 
   switch (type) {
+
     case "string":
       return { value: String(val) };
 
@@ -127,8 +128,8 @@ function convertValue(type, val) {
       return { value: Number(val) };
 
     case "date":
-      // Excel serial date にも対応
       if (typeof val === "number") {
+        // Excel serial → YYYY-MM-DD
         const d = xlsx.SSF.parse_date_code(val);
         const dt = new Date(Date.UTC(d.y, d.m - 1, d.d));
         return { value: dt.toISOString().slice(0, 10) };
@@ -136,12 +137,36 @@ function convertValue(type, val) {
       return { value: String(val) };
 
     case "datetime":
-      return { value: new Date(val).toISOString() };
+
+      // --- ① Excel serial (number) ---
+      if (typeof val === "number") {
+        const d = xlsx.SSF.parse_date_code(val);
+        const dt = new Date(Date.UTC(d.y, d.m - 1, d.d, d.H, d.M, d.S));
+        return { value: dt.toISOString() };
+      }
+
+      // --- ② 数字の文字列を serial として扱う ---
+      if (!isNaN(val)) {
+        const serial = Number(val);
+        const d = xlsx.SSF.parse_date_code(serial);
+        const dt = new Date(Date.UTC(d.y, d.m - 1, d.d, d.H, d.M, d.S));
+        return { value: dt.toISOString() };
+      }
+
+      // --- ③ 通常の文字列datetimeとして扱う ---
+      const dateObj = new Date(val);
+      if (!isNaN(dateObj.getTime())) {
+        return { value: dateObj.toISOString() };
+      }
+
+      // --- ④ それでも解釈できなければ空 ---
+      return { value: "" };
 
     default:
       return { value: String(val) };
   }
 }
+
 
 
 // =============================
